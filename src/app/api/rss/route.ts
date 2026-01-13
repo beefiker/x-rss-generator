@@ -159,10 +159,12 @@ export const GET = async (request: NextRequest): Promise<NextResponse> => {
 
     // Return the RSS feed directly from RSSHub
     // We proxy it to maintain consistent API interface
+    // Use minimal caching for RSS feeds that need frequent updates (Slack, etc.)
     return new NextResponse(rssHubFeed, {
       headers: {
         "Content-Type": "application/xml; charset=utf-8",
-        "Cache-Control": "public, s-maxage=600, stale-while-revalidate=1200",
+        // Reduced cache: 1 minute instead of 10 minutes for faster updates
+        "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120",
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "GET",
         "X-Powered-By": "RSSHub",

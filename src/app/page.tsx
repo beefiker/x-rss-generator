@@ -29,9 +29,15 @@ export default function Home() {
             </header>
 
             {/* Form */}
-            <div className="mb-16 sm:mb-20 rotating-form">
-              <RssForm />
-            </div>
+            {process.env.NODE_ENV === "development" ? (
+              <div className="mb-16 sm:mb-20">
+                <RssForm />
+              </div>
+            ) : (
+              <div className="mb-16 sm:mb-20 rotating-form">
+                <RssForm />
+              </div>
+            )}
 
             {/* Footer */}
             <footer className="pt-8 border-t border-gray-800/50">
