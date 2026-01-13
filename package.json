@@ -1,0 +1,49 @@
+{
+  "name": "x-rss-generator",
+  "version": "1.0.0",
+  "private": true,
+  "author": "J Young",
+  "license": "MIT",
+  "homepage": "https://twitter-rss-generator-dgd7ogqte-beefikers-projects.vercel.app/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/beefiker/x-rss-generator.git"
+  },
+  "bugs": {
+    "url": "https://github.com/beefiker/x-rss-generator/issues"
+  },
+  "keywords": [
+    "x",
+    "rss",
+    "generator",
+    "twitter",
+    "rsshub"
+  ],
+  "scripts": {
+    "dev": "next dev",
+    "prebuild": "node scripts/generate-build-time.js",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "fast-xml-parser": "^5.3.3",
+    "framer-motion": "^12.26.1",
+    "lucide-react": "^0.469.0",
+    "next": "^15.1.4",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tailwind-merge": "^2.6.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.0.1",
+    "@types/react-dom": "^19.0.2",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.2"
+  }
+}
