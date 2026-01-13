@@ -16,10 +16,10 @@ interface FetchRssHubOptions {
 // Updated from: https://john-marques.github.io/rsshub-docs/guide/instances
 // You can also self-host RSSHub for better reliability
 const RSSHUB_INSTANCES = [
-  process.env.RSSHUB_INSTANCE || "https://rsshub.app", // Official
+  process.env.RSSHUB_INSTANCE || "https://rsshub.pseudoyu.com", // 🇩🇪 Germany
   "https://rsshub.rssforever.com", // 🇦🇪 UAE
   "https://hub.slarker.me", // 🇺🇸 USA
-  "https://rsshub.pseudoyu.com", // 🇩🇪 Germany
+  "https://rsshub.app", // Official
   "https://rsshub.rss.tips", // 🇺🇸 USA
   "https://rsshub.ktachibana.party", // 🇺🇸 USA
   "https://rsshub.woodland.cafe", // 🇩🇪 Germany
@@ -128,9 +128,31 @@ const removeDuplicateAttributes = (xml: string): string => {
 };
 
 /**
+ * Fix invalid author tags in RSS XML
+ * RSS 2.0 spec requires author to be in email format: "email@example.com (Name)"
+ * RSSHub sometimes returns just names, which is invalid
+ */
+const fixAuthorTags = (xml: string): string => {
+  // Match <author> tags that don't contain @ (invalid email format)
+  // Replace with valid format: "noreply@rsshub.app (Original Name)"
+  return xml.replace(/<author>([^<@]+)<\/author>/gi, (match, name) => {
+    // Remove invalid author tags or convert to valid email format
+    // RSS 2.0 spec: author must be email or email with name
+    // We'll use a placeholder email format
+    const cleanName = name.trim();
+    if (cleanName && !cleanName.includes("@")) {
+      // Convert to valid format: "email@domain.com (Name)"
+      return `<author>noreply@rsshub.app (${cleanName})</author>`;
+    }
+    return match; // Already valid or empty
+  });
+};
+
+/**
  * Sanitize RSS XML to fix common issues
  * - Unescaped ampersands
  * - Duplicate attributes
+ * - Invalid author email addresses
  */
 const sanitizeRssXml = (xml: string): string => {
   // Split XML into parts: CDATA sections and everything else
@@ -165,7 +187,7 @@ const sanitizeRssXml = (xml: string): string => {
   }
 
   // Process only non-CDATA parts
-  return parts
+  let sanitized = parts
     .map((part) => {
       if (part.type === "cdata") {
         return part.content; // Leave CDATA unchanged
@@ -182,6 +204,11 @@ const sanitizeRssXml = (xml: string): string => {
       return fixed;
     })
     .join("");
+
+  // Fix invalid author tags (must be done on full XML, not parts)
+  sanitized = fixAuthorTags(sanitized);
+
+  return sanitized;
 };
 
 /**
@@ -198,6 +225,8 @@ const fetchFromInstance = async (
       "User-Agent":
         "Mozilla/5.0 (compatible; RSSFeedGenerator/1.0; +https://github.com)",
     },
+    // Disable Next.js caching to ensure fresh content from RSSHub
+    cache: "no-store",
     // Add timeout
     signal: AbortSignal.timeout(15000), // 15 second timeout
   });

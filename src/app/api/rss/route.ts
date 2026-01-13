@@ -149,7 +149,7 @@ export const GET = async (request: NextRequest): Promise<NextResponse> => {
     }
 
     // Fetch RSS feed from RSSHub
-    const rssHubFeed = await fetchRssHubRss({
+    let rssHubFeed = await fetchRssHubRss({
       type: type as "user" | "search" | "hashtag" | "list",
       username: username || undefined,
       query: query || undefined,
@@ -157,14 +157,39 @@ export const GET = async (request: NextRequest): Promise<NextResponse> => {
       listId: listId,
     });
 
+    // Fix RSS feed validation issues:
+    // 1. Fix atom:link self-reference to point to our proxy URL (not RSSHub's URL)
+    // 2. Ensure TTL tag is present
+    const escapedFeedUrl = escapeXml(rssFeedUrl);
+
+    // Replace atom:link self-reference with our proxy URL
+    // Match atom:link tags with rel="self" - handle both self-closing and closing tag formats
+    rssHubFeed = rssHubFeed.replace(
+      /<atom:link[^>]*rel=["']self["'][^>]*(?:\/>|><\/atom:link>)/gi,
+      `<atom:link href="${escapedFeedUrl}" rel="self" type="application/rss+xml" />`
+    );
+
+    // Ensure RSS feed has proper TTL tag for RSS readers
+    // RSSHub feeds typically include <ttl>5</ttl> (5 minutes)
+    // If missing, add it to help RSS readers know how often to check
+    if (!rssHubFeed.includes("<ttl>")) {
+      // Insert TTL tag after <language> tag (common RSS structure)
+      // TTL of 5 minutes (300 seconds) matches RSSHub's default
+      rssHubFeed = rssHubFeed.replace(
+        /(<language>[^<]*<\/language>)/i,
+        "$1\n    <ttl>5</ttl>"
+      );
+    }
+
     // Return the RSS feed directly from RSSHub
     // We proxy it to maintain consistent API interface
-    // Use minimal caching for RSS feeds that need frequent updates (Slack, etc.)
+    // Cache headers aligned with RSS TTL for better compatibility
     return new NextResponse(rssHubFeed, {
       headers: {
         "Content-Type": "application/xml; charset=utf-8",
-        // Reduced cache: 1 minute instead of 10 minutes for faster updates
-        "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120",
+        // Match cache time with RSS TTL (5 minutes = 300 seconds)
+        // This ensures consistency between RSS TTL and HTTP cache
+        "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "GET",
         "X-Powered-By": "RSSHub",
