@@ -10,6 +10,8 @@ interface FetchRssHubOptions {
   query?: string;
   hashtag?: string;
   listId?: string;
+  excludeReplies?: boolean;
+  excludeRetweets?: boolean;
 }
 
 // List of public RSSHub instances (can be configured via env)
@@ -47,7 +49,15 @@ const buildRssHubUrl = (
         throw new Error("Username is required for user timeline");
       }
       // RSSHub Twitter user route: /twitter/user/:id
-      return `${instance}/twitter/user/${encodeURIComponent(options.username)}`;
+      // Optional path segments: /excludeReplies and /excludeRetweets
+      let userPath = `${instance}/twitter/user/${encodeURIComponent(options.username)}`;
+      if (options.excludeReplies) {
+        userPath += "/excludeReplies";
+      }
+      if (options.excludeRetweets) {
+        userPath += "/excludeRetweets";
+      }
+      return userPath;
 
     case "search":
       if (!options.query) {

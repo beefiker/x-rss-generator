@@ -1,4 +1,5 @@
 import { fetchRssHubRss } from "@/lib/rsshub-fetcher";
+import { createHash } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 
 interface RssItem {
@@ -155,18 +156,42 @@ export const GET = async (request: NextRequest): Promise<NextResponse> => {
       query: query || undefined,
       hashtag: hashtag || undefined,
       listId: listId,
+      excludeReplies: excludeReplies === "true",
+      excludeRetweets: excludeRetweets === "true",
     });
 
-    // Fix RSS feed validation issues:
+    // Fix RSS feed validation issues and improve Slack compatibility:
     // 1. Fix atom:link self-reference to point to our proxy URL (not RSSHub's URL)
-    // 2. Ensure TTL tag is present
+    // 2. Convert URL-based GUIDs to hash-based GUIDs (better for Slack compatibility)
+    // 3. Ensure TTL tag is present
+    // 4. Add dc:creator namespace for better compatibility
     const escapedFeedUrl = escapeXml(rssFeedUrl);
+
+    // Add dc namespace if not present (for dc:creator support)
+    if (!rssHubFeed.includes('xmlns:dc="http://purl.org/dc/elements/1.1/"')) {
+      rssHubFeed = rssHubFeed.replace(
+        /<rss([^>]*)version=["']2\.0["']/i,
+        '<rss$1version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/"'
+      );
+    }
 
     // Replace atom:link self-reference with our proxy URL
     // Match atom:link tags with rel="self" - handle both self-closing and closing tag formats
     rssHubFeed = rssHubFeed.replace(
       /<atom:link[^>]*rel=["']self["'][^>]*(?:\/>|><\/atom:link>)/gi,
       `<atom:link href="${escapedFeedUrl}" rel="self" type="application/rss+xml" />`
+    );
+
+    // Convert URL-based GUIDs to hash-based GUIDs for better Slack compatibility
+    // RSSHub uses: <guid>https://twitter.com/user/status/123</guid>
+    // Convert to: <guid>hash-of-url</guid>
+    rssHubFeed = rssHubFeed.replace(
+      /<guid([^>]*)>(https:\/\/(?:twitter\.com|x\.com)\/[^<]+)<\/guid>/gi,
+      (match, attributes, url) => {
+        // Generate MD5 hash of the full URL (like RSS.app does)
+        const hash = createHash("md5").update(url).digest("hex");
+        return `<guid isPermaLink="false">${hash}</guid>`;
+      }
     );
 
     // Ensure RSS feed has proper TTL tag for RSS readers
