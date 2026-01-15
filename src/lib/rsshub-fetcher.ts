@@ -50,7 +50,9 @@ const buildRssHubUrl = (
       }
       // RSSHub Twitter user route: /twitter/user/:id
       // Optional path segments: /excludeReplies and /excludeRetweets
-      let userPath = `${instance}/twitter/user/${encodeURIComponent(options.username)}`;
+      let userPath = `${instance}/twitter/user/${encodeURIComponent(
+        options.username
+      )}`;
       if (options.excludeReplies) {
         userPath += "/excludeReplies";
       }
@@ -222,6 +224,22 @@ const sanitizeRssXml = (xml: string): string => {
 };
 
 /**
+ * Validate that the response is actually XML/RSS and not HTML
+ */
+const isValidRssXml = (content: string): boolean => {
+  const trimmed = content.trim();
+  // Check if it starts with XML declaration or RSS tag
+  // Also check for common HTML tags that indicate it's not RSS
+  return (
+    (trimmed.startsWith("<?xml") || trimmed.startsWith("<rss")) &&
+    !trimmed.toLowerCase().startsWith("<!doctype html") &&
+    !trimmed.toLowerCase().startsWith("<html") &&
+    trimmed.includes("<rss") &&
+    trimmed.includes("</rss>")
+  );
+};
+
+/**
  * Fetch RSS feed from an RSSHub instance
  */
 const fetchFromInstance = async (
@@ -247,7 +265,36 @@ const fetchFromInstance = async (
     );
   }
 
+  // Check Content-Type header
+  const contentType = response.headers.get("content-type") || "";
+  const isXmlContentType =
+    contentType.includes("xml") ||
+    contentType.includes("rss") ||
+    contentType.includes("application/rss+xml") ||
+    contentType.includes("text/xml");
+
   const rawXml = await response.text();
+
+  // Validate that the response is actually XML/RSS
+  if (!isValidRssXml(rawXml)) {
+    // If Content-Type suggests HTML or response looks like HTML, throw error
+    if (
+      contentType.includes("text/html") ||
+      contentType.includes("text/plain") ||
+      !isXmlContentType
+    ) {
+      throw new Error(
+        `RSSHub instance ${instance} returned HTML instead of RSS (Content-Type: ${contentType}). The instance may be blocked or unavailable.`
+      );
+    }
+    // Even if Content-Type is XML, validate the content
+    if (!isValidRssXml(rawXml)) {
+      throw new Error(
+        `RSSHub instance ${instance} returned invalid RSS/XML content. The response may be an error page.`
+      );
+    }
+  }
+
   // Sanitize the XML to fix unescaped ampersands
   return sanitizeRssXml(rawXml);
 };
