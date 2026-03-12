@@ -53,7 +53,8 @@ const generateRssXml = (
       feedUrl,
     )}" rel="self" type="application/rss+xml" />
     <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
-    <language>en</language>${itemsXml}
+    <language>en</language>
+    <ttl>30</ttl>${itemsXml}
   </channel>
 </rss>`;
 };
@@ -194,12 +195,17 @@ export const GET = async (request: NextRequest): Promise<NextResponse> => {
       },
     );
 
-    // Ensure RSS feed has proper TTL tag for RSS readers
-    // RSSHub feeds typically include <ttl>30</ttl> (5 minutes)
-    // If missing, add it to help RSS readers know how often to check
-    if (!rssHubFeed.includes("<ttl>")) {
-      // Insert TTL tag after <language> tag (common RSS structure)
-      // TTL of 30 minutes (1800 seconds) matches RSSHub's default
+    // Ensure RSS feed has proper TTL tag set to 30 minutes for RSS readers
+    // Replace any existing TTL values to ensure consistency
+    if (rssHubFeed.includes("<ttl>")) {
+      // Replace existing TTL value with 30 minutes
+      rssHubFeed = rssHubFeed.replace(
+        /<ttl>[^<]*<\/ttl>/i,
+        "<ttl>30</ttl>",
+      );
+    } else {
+      // If missing, add TTL tag after <language> tag (common RSS structure)
+      // TTL of 30 minutes (1800 seconds)
       rssHubFeed = rssHubFeed.replace(
         /(<language>[^<]*<\/language>)/i,
         "$1\n    <ttl>30</ttl>",
