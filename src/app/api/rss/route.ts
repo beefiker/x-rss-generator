@@ -28,7 +28,7 @@ const generateRssXml = (
   description: string,
   link: string,
   feedUrl: string,
-  items: RssItem[]
+  items: RssItem[],
 ): string => {
   const itemsXml = items
     .map(
@@ -39,7 +39,7 @@ const generateRssXml = (
       <description><![CDATA[${item.description}]]></description>
       <pubDate>${item.pubDate}</pubDate>
       <guid isPermaLink="false">${item.guid}</guid>
-    </item>`
+    </item>`,
     )
     .join("");
 
@@ -50,7 +50,7 @@ const generateRssXml = (
     <description><![CDATA[${description}]]></description>
     <link>${escapeXml(link)}</link>
     <atom:link href="${escapeXml(
-      feedUrl
+      feedUrl,
     )}" rel="self" type="application/rss+xml" />
     <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
     <language>en</language>${itemsXml}
@@ -79,7 +79,7 @@ export const GET = async (request: NextRequest): Promise<NextResponse> => {
       if (!username) {
         return NextResponse.json(
           { error: "Username is required" },
-          { status: 400 }
+          { status: 400 },
         );
       }
       feedTitle = `Twitter: @${username}`;
@@ -97,7 +97,7 @@ export const GET = async (request: NextRequest): Promise<NextResponse> => {
       if (!query) {
         return NextResponse.json(
           { error: "Search query is required" },
-          { status: 400 }
+          { status: 400 },
         );
       }
       feedTitle = `Twitter Search: ${query}`;
@@ -112,7 +112,7 @@ export const GET = async (request: NextRequest): Promise<NextResponse> => {
       if (!hashtag) {
         return NextResponse.json(
           { error: "Hashtag is required" },
-          { status: 400 }
+          { status: 400 },
         );
       }
       feedTitle = `Twitter: #${hashtag}`;
@@ -124,7 +124,7 @@ export const GET = async (request: NextRequest): Promise<NextResponse> => {
       if (!username || !listSlug) {
         return NextResponse.json(
           { error: "Username and list slug are required" },
-          { status: 400 }
+          { status: 400 },
         );
       }
       feedTitle = `Twitter List: ${listSlug} by @${username}`;
@@ -171,7 +171,7 @@ export const GET = async (request: NextRequest): Promise<NextResponse> => {
     if (!rssHubFeed.includes('xmlns:dc="http://purl.org/dc/elements/1.1/"')) {
       rssHubFeed = rssHubFeed.replace(
         /<rss([^>]*)version=["']2\.0["']/i,
-        '<rss$1version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/"'
+        '<rss$1version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/"',
       );
     }
 
@@ -179,7 +179,7 @@ export const GET = async (request: NextRequest): Promise<NextResponse> => {
     // Match atom:link tags with rel="self" - handle both self-closing and closing tag formats
     rssHubFeed = rssHubFeed.replace(
       /<atom:link[^>]*rel=["']self["'][^>]*(?:\/>|><\/atom:link>)/gi,
-      `<atom:link href="${escapedFeedUrl}" rel="self" type="application/rss+xml" />`
+      `<atom:link href="${escapedFeedUrl}" rel="self" type="application/rss+xml" />`,
     );
 
     // Convert URL-based GUIDs to hash-based GUIDs for better Slack compatibility
@@ -191,18 +191,18 @@ export const GET = async (request: NextRequest): Promise<NextResponse> => {
         // Generate MD5 hash of the full URL (like RSS.app does)
         const hash = createHash("md5").update(url).digest("hex");
         return `<guid isPermaLink="false">${hash}</guid>`;
-      }
+      },
     );
 
     // Ensure RSS feed has proper TTL tag for RSS readers
-    // RSSHub feeds typically include <ttl>5</ttl> (5 minutes)
+    // RSSHub feeds typically include <ttl>30</ttl> (5 minutes)
     // If missing, add it to help RSS readers know how often to check
     if (!rssHubFeed.includes("<ttl>")) {
       // Insert TTL tag after <language> tag (common RSS structure)
-      // TTL of 5 minutes (300 seconds) matches RSSHub's default
+      // TTL of 30 minutes (1800 seconds) matches RSSHub's default
       rssHubFeed = rssHubFeed.replace(
         /(<language>[^<]*<\/language>)/i,
-        "$1\n    <ttl>5</ttl>"
+        "$1\n    <ttl>30</ttl>",
       );
     }
 
@@ -212,9 +212,9 @@ export const GET = async (request: NextRequest): Promise<NextResponse> => {
     return new NextResponse(rssHubFeed, {
       headers: {
         "Content-Type": "application/xml; charset=utf-8",
-        // Match cache time with RSS TTL (5 minutes = 300 seconds)
+        // Match cache time with RSS TTL (30 minutes = 1800 seconds)
         // This ensures consistency between RSS TTL and HTTP cache
-        "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+        "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=3600",
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "GET",
         "X-Powered-By": "RSSHub",
@@ -242,7 +242,7 @@ export const GET = async (request: NextRequest): Promise<NextResponse> => {
           pubDate: new Date().toUTCString(),
           guid: `error-${Date.now()}`,
         },
-      ]
+      ],
     );
 
     return new NextResponse(errorRssXml, {
